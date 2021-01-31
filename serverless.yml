@@ -1,0 +1,73 @@
+service: sls
+
+custom:
+  settings:
+    USERS_TABLE: users
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  environment: ${self:custom.settings}
+  region: eu-central-1
+  iamRoleStatements:
+   - Effect: "Allow"
+     Action:
+        - "cloudformation:DescribeStackResource"
+        - dynamodb:DescribeTable
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+     Resource:
+      - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.USERS_TABLE}"
+
+
+functions:
+  createUser:
+    handler: handler.createUser
+    events:
+    - http:
+        path: /user/create
+        method: post
+  getUser:
+    handler: handler.getUser
+    events:
+    - http:
+        path: /user/profile/{userId}
+        method: get
+  submitScore:
+    handler: handler.submitScore
+    events:
+    - http:
+        path: /score/submit
+        method: put
+  getLeaderboard:
+    handler: handler.getLeaderboard
+    events:
+    - http:
+        path: /leaderboard
+        method: get
+  getLeaderboardWithCountry:
+    handler: handler.getLeaderboardWithCountry
+    events:
+    - http:
+        path: /leaderboard/{countryCode}
+        method: get
+
+resources:
+  Resources:
+    PostsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "user_id"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "user_id"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: ${self:custom.settings.USERS_TABLE}
