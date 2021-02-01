@@ -4,6 +4,7 @@ const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 const { v4: uuidv4 } = require('uuid');
 
 const usersTable = process.env.USERS_TABLE;
+const sizeTable = process.env.SIZE_TABLE;
 
 function response(statusCode, message) {
   return {
@@ -19,7 +20,7 @@ function sortByPoint(a, b) {
 
 module.exports.createUser = (event, context, callback) => {
   const reqBody = JSON.parse(event.body);
-
+  
   const user = {
     user_id: uuidv4(),
     display_name: reqBody.display_name,
@@ -27,7 +28,6 @@ module.exports.createUser = (event, context, callback) => {
     rank: 1,
     country: reqBody.country
   };
-
   const userResponse = {
     user_id: user.user_id,
     display_name: user.display_name,
@@ -35,16 +35,18 @@ module.exports.createUser = (event, context, callback) => {
     rank: user.rank
   };
 
+
   return db
-    .put({
-      TableName: usersTable,
-      Item: user
-    })
-    .promise()
-    .then(() => {
-      callback(null, response(201, userResponse));
-    })
-    .catch((err) => response(null, response(err.statusCode, err)));
+   .put({
+     TableName: usersTable,
+     Item: user
+   })
+   .promise()
+   .then(() => {
+     callback(null, response(201, userResponse));
+   })
+   .catch((err) => response(null, response(err.statusCode, err)));
+
 };
 
 
