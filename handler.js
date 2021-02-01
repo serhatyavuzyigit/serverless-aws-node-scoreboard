@@ -63,15 +63,14 @@ module.exports.getLeaderboard = (event, context, callback) => {
 module.exports.getLeaderboardWithCountry = (event, context, callback) => {
   const countryCode = event.pathParameters.countryCode;;
   const params = {
-    ExpressionAttributeValues: {
-      ':countryIso': countryCode
-    },
-    ConditionExpression: 'country = :countryIso',
-    TableName: usersTable
+    TableName: usersTable,
+    FilterExpression: 'country = :cCode',
+    ExpressionAttributeValues:{ ':cCode': countryCode
+    }
   };
 
   return db
-    .get(params)
+    .scan(params)
     .promise()
     .then((res) => {
       callback(null, response(200, res.Items.sort(sortByPoint)));
@@ -102,7 +101,7 @@ module.exports.getUser = (event, context, callback) => {
 module.exports.submitScore = (event, context, callback) => {
   const reqBody = JSON.parse(event.body);
   const id = reqBody.user_id;
-  const score = reqBody.score_worth;
+  const score = parseFloat(reqBody.score_worth);
 
   const params = {
     Key: {
