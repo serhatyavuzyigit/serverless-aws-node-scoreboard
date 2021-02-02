@@ -110,7 +110,6 @@ module.exports.submitScore = (event, context, callback) => {
       user_id: id
     },
     TableName: usersTable,
-    ConditionExpression: 'attribute_exists(user_id)',
     UpdateExpression: 'SET points = points + :score',
     ExpressionAttributeValues: {
       ':score': score
