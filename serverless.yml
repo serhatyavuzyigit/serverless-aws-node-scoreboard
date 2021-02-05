@@ -2,7 +2,8 @@ service: sls
 
 custom:
   settings:
-    USERS_TABLE: users
+    USERS_TABLE: Users
+    SIZE_TABLE: size
 
 provider:
   name: aws
@@ -14,6 +15,7 @@ provider:
    - Effect: "Allow"
      Action:
         - "cloudformation:DescribeStackResource"
+        - dynamodb:Query
         - dynamodb:DescribeTable
         - dynamodb:Scan
         - dynamodb:GetItem
@@ -22,6 +24,18 @@ provider:
         - dynamodb:DeleteItem
      Resource:
       - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.USERS_TABLE}"
+   - Effect: "Allow"
+     Action:
+        - "cloudformation:DescribeStackResource"
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+     Resource:
+      - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.SIZE_TABLE}"
 
 
 functions:
@@ -64,10 +78,27 @@ resources:
         AttributeDefinitions:
         - AttributeName: "user_id"
           AttributeType: "S"
+        - AttributeName: "points"
+          AttributeType: "N"
         KeySchema:
         - AttributeName: "user_id"
           KeyType: "HASH"
+        - AttributeName: "points"
+          KeyType: "RANGE"
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
         TableName: ${self:custom.settings.USERS_TABLE}
+    SizeTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: ${self:custom.settings.SIZE_TABLE}
