@@ -4,6 +4,7 @@ const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 const { v4: uuidv4 } = require('uuid');
 
 const usersTable = process.env.USERS_TABLE;
+const sizeTable = process.env.SIZE_TABLE;
 
 function response(statusCode, message) {
   return {
@@ -20,13 +21,13 @@ function sortByPoint(a, b) {
 async function getTotalSize() {
   try {
     const sizeParams = {
-      TableName: usersTable,
+      TableName: sizeTable,
       Key: {
-        user_id: "size"
+        id: "total_size"
       }
     }
     const sizeObj = await db.get(sizeParams).promise()
-    return sizeObj.Item.total_size;
+    return sizeObj.Item.size_value;
   } catch(err) {
     return callback(null, response(err.statusCode, err));
   }
@@ -46,10 +47,10 @@ function getNewUser(reqBody, size) {
 async function updateSize() {
   const updateParams = {
     Key: {
-      user_id: "size"
+      id: "total_size"
     },
-    TableName: usersTable,
-    UpdateExpression: 'SET total_size = total_size + :inc',
+    TableName: sizeTable,
+    UpdateExpression: 'SET size_value = size_value + :inc',
     ExpressionAttributeValues: {
       ':inc': 1
     },
@@ -91,7 +92,7 @@ module.exports.getLeaderboard = (event, context, callback) => {
     })
     .promise()
     .then((res) => {
-      callback(null, response(200, res.Items.sort(sortByPoint)));
+      callback(null, response(200, res.Items));
     })
     .catch((err) => callback(null, response(err.statusCode, err)));
 };
@@ -114,58 +115,75 @@ module.exports.getLeaderboardWithCountry = (event, context, callback) => {
     .catch((err) => callback(null, response(err.statusCode, err)));
 };
 
-module.exports.getUser = (event, context, callback) => {
-  const id = event.pathParameters.userId;
+module.exports.getUser = async (event, context, callback) => {
+  try {
+    const id = event.pathParameters.userId;
+    const user = await getUserWithId(id);
+    return callback(null, response(200, user));
+  } catch(err) {
+    return callback(null, response(err.statusCode, err));
+  }
+};
 
+async function getUserWithId(id) {
+  const params = {
+    ExpressionAttributeValues:{
+      ':u_id': id
+    },
+    KeyConditionExpression: "user_id = :u_id",
+    TableName: usersTable
+  };
+  
+  const user = await db.query(params).promise();
+  return user.Items[0];
+}
+
+async function deleteUserWithId(id, score) {
   const params = {
     Key: {
-      user_id: id
+      user_id: id,
+      points: score
     },
     TableName: usersTable
   };
 
-  return db
-    .get(params)
-    .promise()
-    .then((res) => {
-      if (res.Item) callback(null, response(200, res.Item));
-      else callback(null, response(404, { error: 'User not found' }));
-    })
-    .catch((err) => callback(null, response(err.statusCode, err)));
-};
+  await db.delete(params).promise();
 
-module.exports.submitScore = (event, context, callback) => {
+}
+
+module.exports.submitScore = async (event, context, callback) => {
   
-  const reqBody = JSON.parse(event.body);
-  const id = reqBody.user_id;
-  const score = parseFloat(reqBody.score_worth);
+  try{
+    const reqBody = JSON.parse(event.body);
+    const id = reqBody.user_id;
+    const score = parseFloat(reqBody.score_worth);
+    const user = await getUserWithId(id);
+    const exScore = user.points;
+    var newScore = exScore + score;
+    const _rank = user.rank;
+    const _country = user.country;
+    const name = user.display_name;
 
-  const params = {
-    Key: {
-      user_id: id
-    },
-    TableName: usersTable,
-    UpdateExpression: 'SET points = points + :score',
-    ExpressionAttributeValues: {
-      ':score': score
-    },
-    ReturnValues: 'ALL_NEW'
-  };
-  console.log('Updating');
+    await deleteUserWithId(id, exScore);
 
-  const submitResponse = {
-    score_worth: score,
-    user_id: id,
-    timestamp: Date.now()
+    const submitResponse = {
+      score_worth: score,
+      user_id: id,
+      timestamp: Date.now()
+    }
+
+    const newUser = {
+      user_id: id,
+      display_name: name,
+      points: newScore,
+      rank: _rank,
+      country: _country
+    }
+
+    await putUser(newUser);
+    return callback(null, response(201, submitResponse)); 
+  } catch(err) {
+    return callback(null, response(err.statusCode, err));
   }
-
-  return db
-    .update(params)
-    .promise()
-    .then((res) => {
-      console.log(res);
-      callback(null, response(200, submitResponse));
-    })
-    .catch((err) => callback(null, response(err.statusCode, err)));
     
 };
