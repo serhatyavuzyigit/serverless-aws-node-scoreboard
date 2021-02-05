@@ -3,7 +3,6 @@ service: sls
 custom:
   settings:
     USERS_TABLE: users
-    SIZE_TABLE: total_size
 
 provider:
   name: aws
@@ -23,15 +22,6 @@ provider:
         - dynamodb:DeleteItem
      Resource:
       - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.USERS_TABLE}"
-   - Effect: "Allow"
-     Action:
-        - dynamodb:DescribeTable
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-     Resource:
-      - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.SIZE_TABLE}"
 
 
 functions:
@@ -81,16 +71,3 @@ resources:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
         TableName: ${self:custom.settings.USERS_TABLE}
-    TotalSizeTable:
-        Type: AWS::DynamoDB::Table
-        Properties:
-          AttributeDefinitions:
-          - AttributeName: "size"
-            AttributeType: "S"
-          KeySchema:
-          - AttributeName: "size"
-            KeyType: "HASH"
-          ProvisionedThroughput:
-            ReadCapacityUnits: 5
-            WriteCapacityUnits: 5
-          TableName: ${self:custom.settings.SIZE_TABLE}
