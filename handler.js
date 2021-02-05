@@ -4,7 +4,6 @@ const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 const { v4: uuidv4 } = require('uuid');
 
 const usersTable = process.env.USERS_TABLE;
-const sizeTable = process.env.SIZE_TABLE;
 
 function response(statusCode, message) {
   return {
@@ -18,34 +17,69 @@ function sortByPoint(a, b) {
   else return 1;
 }
 
-module.exports.createUser = (event, context, callback) => {
-  const reqBody = JSON.parse(event.body);
-  
+async function getTotalSize() {
+  try {
+    const sizeParams = {
+      TableName: usersTable,
+      Key: {
+        user_id: "size"
+      }
+    }
+    const sizeObj = await db.get(sizeParams).promise()
+    return sizeObj.Item.total_size;
+  } catch(err) {
+    return callback(null, response(err.statusCode, err));
+  }
+}
+
+function getNewUser(reqBody, size) {
   const user = {
     user_id: uuidv4(),
     display_name: reqBody.display_name,
     points: 0,
-    rank: 1,
+    rank: size+1,
     country: reqBody.country
-  };
-  const userResponse = {
-    user_id: user.user_id,
-    display_name: user.display_name,
-    points: user.points,
-    rank: user.rank
-  };
+  }
+  return user;
+}
 
+async function updateSize() {
+  const updateParams = {
+    Key: {
+      user_id: "size"
+    },
+    TableName: usersTable,
+    UpdateExpression: 'SET total_size = total_size + :inc',
+    ExpressionAttributeValues: {
+      ':inc': 1
+    },
+    ReturnValues: 'ALL_NEW'
+  }
+  await db.update(updateParams).promise();
+}
 
-  return db
-   .put({
-     TableName: usersTable,
-     Item: user
-   })
-   .promise()
-   .then(() => {
-     callback(null, response(201, userResponse));
-   })
-   .catch((err) => response(null, response(err.statusCode, err)));
+async function putUser(user) {
+  await db.put({TableName: usersTable, Item: user}).promise();
+
+}
+
+module.exports.createUser = async(event, context, callback) => {
+  const reqBody = JSON.parse(event.body);
+  try {
+    var totalSize = await getTotalSize();
+    const user = getNewUser(reqBody, totalSize);
+
+    const userResponse = {
+      user_id: user.user_id,
+      display_name: user.display_name,
+      points: user.points,
+      rank: user.rank
+    }
+    await Promise.all([updateSize(), putUser(user)]);
+    return callback(null, response(201, userResponse));
+  } catch(err) {
+    return callback(null, response(err.statusCode, err));
+  }
 
 };
 
@@ -101,6 +135,7 @@ module.exports.getUser = (event, context, callback) => {
 };
 
 module.exports.submitScore = (event, context, callback) => {
+  
   const reqBody = JSON.parse(event.body);
   const id = reqBody.user_id;
   const score = parseFloat(reqBody.score_worth);
@@ -132,4 +167,5 @@ module.exports.submitScore = (event, context, callback) => {
       callback(null, response(200, submitResponse));
     })
     .catch((err) => callback(null, response(err.statusCode, err)));
+    
 };
