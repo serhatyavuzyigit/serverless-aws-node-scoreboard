@@ -88,11 +88,12 @@ module.exports.createUser = async(event, context, callback) => {
 module.exports.getLeaderboard = (event, context, callback) => {
   return db
     .scan({
-      TableName: usersTable
+      TableName: usersTable,
+      ScanIndexForward: false
     })
     .promise()
     .then((res) => {
-      callback(null, response(200, res.Items));
+      callback(null, response(200, res.Items.sort(sortByPoint)));
     })
     .catch((err) => callback(null, response(err.statusCode, err)));
 };
@@ -103,7 +104,8 @@ module.exports.getLeaderboardWithCountry = (event, context, callback) => {
     TableName: usersTable,
     FilterExpression: 'country = :cCode',
     ExpressionAttributeValues:{ ':cCode': countryCode
-    }
+    },
+    ScanIndexForward: false
   };
 
   return db
