@@ -23,7 +23,7 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
      Resource:
-      - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.USERS_TABLE}"
+      - "arn:aws:dynamodb:eu-central-1:<account_id>:table/${self:custom.settings.USERS_TABLE}"
    - Effect: "Allow"
      Action:
         - "cloudformation:DescribeStackResource"
@@ -35,7 +35,7 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
      Resource:
-      - "arn:aws:dynamodb:eu-central-1:764520112559:table/${self:custom.settings.SIZE_TABLE}"
+      - "arn:aws:dynamodb:eu-central-1:<account_id>:table/${self:custom.settings.SIZE_TABLE}"
 
 
 functions:
