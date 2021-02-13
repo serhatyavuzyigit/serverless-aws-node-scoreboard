@@ -73,8 +73,7 @@ module.exports.createUser = async(event, context, callback) => {
     const userResponse = {
       user_id: user.user_id,
       display_name: user.display_name,
-      points: user.points,
-      rank: user.rank
+      points: user.points
     }
     await Promise.all([updateSize(), putUser(user)]);
     return callback(null, response(201, userResponse));
@@ -135,7 +134,7 @@ async function getUserWithId(id) {
     KeyConditionExpression: "user_id = :u_id",
     TableName: usersTable
   };
-  
+
   const user = await db.query(params).promise();
   return user.Items[0];
 }
@@ -154,7 +153,7 @@ async function deleteUserWithId(id, score) {
 }
 
 module.exports.submitScore = async (event, context, callback) => {
-  
+
   try{
     const reqBody = JSON.parse(event.body);
     const id = reqBody.user_id;
@@ -183,9 +182,9 @@ module.exports.submitScore = async (event, context, callback) => {
     }
 
     await putUser(newUser);
-    return callback(null, response(201, submitResponse)); 
+    return callback(null, response(201, submitResponse));
   } catch(err) {
     return callback(null, response(err.statusCode, err));
   }
-    
+
 };
